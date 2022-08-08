@@ -10,23 +10,22 @@
 
 package de.robv.android.xposed;
 
-import android.util.Log;
+import android.widget.Toast;
 
 import java.lang.reflect.*;
 import java.util.*;
 
-@SuppressWarnings({"unused", "JavaDoc"})
+@SuppressWarnings({"unused"})
 public class XposedBridge {
     private static final String TAG = "AliuHook-XposedBridge";
-
+    public static final ClassLoader BOOTCLASSLOADER = XposedBridge.class.getClassLoader();
+    public static Class<?> aliuhook = null;
     static {
         try {
             callbackMethod = XposedBridge.HookInfo.class.getMethod("callback", Object[].class);
         } catch (Throwable t) {
             throw new RuntimeException("Failed to initialize", t);
         }
-
-        System.loadLibrary("aliuhook");
     }
 
     private static final Object[] EMPTY_ARRAY = new Object[0];
@@ -34,16 +33,57 @@ public class XposedBridge {
     private static final Map<Member, HookInfo> hookRecords = new HashMap<>();
     private static final Method callbackMethod;
 
-    private static native Method hook0(Object context, Member original, Method callback);
+    private static Method hook0(Object context, Member original, Method callback){
+        try {
+            Method method = aliuhook.getDeclaredMethod("hook", Object.class, Member.class, Method.class);
+            return (Method) method.invoke(null,context,original,callback);
+        }
+        catch (Throwable th){
+            throw new RuntimeException(th);
+        }
+    }
 
-    private static native boolean unhook0(Member target);
 
-    private static native boolean deoptimize0(Member target);
+    private static boolean unhook0(Member target) {
+        try {
+            Method method = aliuhook.getDeclaredMethod("unhook", Member.class);
+            return (boolean) method.invoke(null,target);
+        }
+        catch (Throwable th){
+            throw new RuntimeException(th);
+        }
+    }
 
-    private static native boolean makeClassInheritable0(Class<?> target);
+    private static boolean deoptimize0(Member target){
+        try {
+            Method method = aliuhook.getDeclaredMethod("deoptimize", Member.class);
+            return (boolean) method.invoke(null,target);
+        }
+        catch (Throwable th){
+            throw new RuntimeException(th);
+        }
+    }
+
+    private static boolean makeClassInheritable0(Class<?> target){
+        try {
+            Method method = aliuhook.getDeclaredMethod("makeClassInheritable", Class.class);
+            return (boolean) method.invoke(null,target);
+        }
+        catch (Throwable th){
+            throw new RuntimeException(th);
+        }
+    }
 
     // Not used for now
-    private static native boolean isHooked0(Member target);
+    private static boolean isHooked0(Member target){
+        try {
+            Method method = aliuhook.getDeclaredMethod("isHooked", Member.class);
+            return (boolean) method.invoke(null,target);
+        }
+        catch (Throwable th){
+            throw new RuntimeException(th);
+        }
+    }
 
     /**
      * Disable profile saver to try to prevent ART ahead of time compilation
@@ -57,7 +97,15 @@ public class XposedBridge {
      *
      * @return Whether disabling profile saver succeeded
      */
-    public static native boolean disableProfileSaver();
+    public static boolean disableProfileSaver(){
+        try {
+            Method method = aliuhook.getDeclaredMethod("disableProfileSaver");
+            return (boolean) method.invoke(null);
+        }
+        catch (Throwable th){
+            throw new RuntimeException(th);
+        }
+    }
 
     /**
      * Disables HiddenApi restrictions, thus allowing you access to all private interfaces.
@@ -66,7 +114,15 @@ public class XposedBridge {
      * @return Whether disabling hidden api succeeded
      * @see <a href="https://developer.android.com/guide/app-compatibility/restrictions-non-sdk-interfaces">https://developer.android.com/guide/app-compatibility/restrictions-non-sdk-interfaces</a>
      */
-    public static native boolean disableHiddenApiRestrictions();
+    public static boolean disableHiddenApiRestrictions(){
+        try {
+            Method method = aliuhook.getDeclaredMethod("disableHiddenApiRestrictions");
+            return (boolean) method.invoke(null);
+        }
+        catch (Throwable th){
+            throw new RuntimeException(th);
+        }
+    }
 
     private static void checkMethod(Member method) {
         if (method == null)
@@ -301,7 +357,7 @@ public class XposedBridge {
 
     // Aliucord changed: public, so that it can be passed as lsplant context object
     public static class HookInfo {
-        Member backup;
+        public Member backup;
         private final Member method;
         final CopyOnWriteSortedSet<XC_MethodHook> callbacks = new CopyOnWriteSortedSet<>();
         private final boolean isStatic;
@@ -396,8 +452,11 @@ public class XposedBridge {
         }
     }
 
-    // Aliucord changed: private, so people don't abuse this
-    private static void log(Throwable t) {
-        Log.e(TAG, "Uncaught Exception", t);
+    public static void log(Throwable t) {
+        t.printStackTrace();
+    }
+    public static void log(String s) {
+        new Exception(s).printStackTrace();
     }
 }
+
