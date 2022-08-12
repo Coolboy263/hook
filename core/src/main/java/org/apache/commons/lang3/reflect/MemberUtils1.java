@@ -30,8 +30,8 @@ import java.lang.reflect.Modifier;
  * @version $Id: MemberUtils.java 1143537 2011-07-06 19:30:22Z joehni $
  * @since 2.5
  */
-@SuppressWarnings("all")MemberUtils1
-public abstract class  {
+@SuppressWarnings("all")
+public abstract class MemberUtils1 {
     // TODO extract an interface to implement compareParameterSets(...)?
 
     private static final int ACCESS_TEST = Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE;
