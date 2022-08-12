@@ -68,13 +68,13 @@ bool InlineUnhooker(void *func) {
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_de_robv_android_xposed_XposedBridge_isHooked0(JNIEnv *env, jclass, jobject method) {
+Java_reposed_app_aliuhook_isHooked(JNIEnv *env, jclass, jobject method) {
     return lsplant::IsHooked(env, method);
 }
 
 extern "C"
 JNIEXPORT jobject JNICALL
-Java_de_robv_android_xposed_XposedBridge_hook0(JNIEnv *env, jclass, jobject context,
+Java_reposed_app_aliuhook_hook(JNIEnv *env, jclass, jobject context,
                                                jobject original,
                                                jobject callback) {
     return lsplant::Hook(env, original, context, callback);
@@ -82,31 +82,31 @@ Java_de_robv_android_xposed_XposedBridge_hook0(JNIEnv *env, jclass, jobject cont
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_de_robv_android_xposed_XposedBridge_unhook0(JNIEnv *env, jclass, jobject target) {
+Java_reposed_app_aliuhook_unhook(JNIEnv *env, jclass, jobject target) {
     return lsplant::UnHook(env, target);
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_de_robv_android_xposed_XposedBridge_deoptimize0(JNIEnv *env, jclass, jobject method) {
+Java_reposed_app_aliuhook_deoptimize(JNIEnv *env, jclass, jobject method) {
     return lsplant::Deoptimize(env, method);
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_de_robv_android_xposed_XposedBridge_makeClassInheritable0(JNIEnv *env, jclass, jclass clazz) {
+Java_reposed_app_aliuhook_makeClassInheritable(JNIEnv *env, jclass, jclass clazz) {
     return lsplant::MakeClassInheritable(env, clazz);
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_de_robv_android_xposed_XposedBridge_disableProfileSaver(JNIEnv *, jclass) {
+Java_reposed_app_aliuhook_disableProfileSaver(JNIEnv *, jclass) {
     return disable_profile_saver();
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_de_robv_android_xposed_XposedBridge_disableHiddenApiRestrictions(JNIEnv *env, jclass) {
+Java_reposed_app_aliuhook_disableHiddenApiRestrictions(JNIEnv *env, jclass) {
     return disable_hidden_api(env);
 }
 
