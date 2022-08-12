@@ -10,16 +10,37 @@
 
 package de.robv.android.xposed;
 
+import android.app.AndroidAppHelper;
+import android.content.Context;
+import android.content.res.AssetManager;
+import android.database.Cursor;
+import android.net.Uri;
 import android.widget.Toast;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+
+import dalvik.system.PathClassLoader;
+import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 @SuppressWarnings({"unused"})
 public class XposedBridge {
     private static final String TAG = "AliuHook-XposedBridge";
     public static final ClassLoader BOOTCLASSLOADER = XposedBridge.class.getClassLoader();
     public static Class<?> aliuhook = null;
+    private static final Object[] EMPTY_ARRAY = new Object[0];
+    private static final Map<Member, HookInfo> hookRecords = new HashMap<>();
+    private static final Method callbackMethod;
+
     static {
         try {
             callbackMethod = XposedBridge.HookInfo.class.getMethod("callback", Object[].class);
@@ -27,11 +48,89 @@ public class XposedBridge {
             throw new RuntimeException("Failed to initialize", t);
         }
     }
+    public static void initReposed(Context context, Class<?> hook){
+        aliuhook = hook;
+        String command;
+        JSONArray data;
+        try {
+            // query the main app(reposed.app) for whether to shut down
+            // or to load modules and get the modules names
+            Cursor cursor = context.getContentResolver().query(Uri.parse("content://reposed.app.contentProvider/"),null,null,null,null);
+            cursor.moveToFirst();
+            JSONObject jsonObject = new JSONObject(cursor.getString(0));
+            cursor.close();
+            command = jsonObject.getString("command");
+            if (command.equals("shutdown")){
+                throw new Error("this app is frozen");
+            }
+            //if the command is loadModules data will be a list of modules to load
+            data = jsonObject.getJSONArray("data");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
+        try {
+            if (command.equals("loadModules")) {
+                //make the a new instance of LoadPackageParam
+                var lpparam = new XC_LoadPackage.LoadPackageParam();
+                //sets required fields for LoadPackageParam
+                lpparam.packageName =  context.getPackageName();
+                lpparam.processName = AndroidAppHelper.currentProcessName();
+                lpparam.classLoader = aliuhook.getClassLoader();
+                lpparam.appInfo =  context.getApplicationInfo();
+                lpparam.isFirstApplication = true;
+                //load all module and pass lpparam to it
+                loadModulesList(context,data,lpparam);
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+    }
 
-    private static final Object[] EMPTY_ARRAY = new Object[0];
+    private static void loadModulesList(Context context,JSONArray appsList,Object lpparam) throws Throwable {
+        for (int i = 0;i<appsList.length();i++){
+            try {
+                String packageName = appsList.getString(i);
+                String sourceDir = context.getPackageManager().getApplicationInfo(packageName, 0).sourceDir;
+                var moduleClassLoader = new PathClassLoader(sourceDir, null, XposedBridge.class.getClassLoader());
+                String Xposed_init = getXposed_init(context,packageName);
+                if (Xposed_init == null) {
+                    Toast.makeText(context, String.format("Error while loading %s: No Xposed_init file found", packageName), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                Class<?> handleLoadPackageClass;
+                try {
+                    handleLoadPackageClass = Class.forName(Xposed_init, true, moduleClassLoader);
+                    if (!Class.forName("de.robv.android.xposed.IXposedMod", true, moduleClassLoader).isAssignableFrom(handleLoadPackageClass)) {
+                        Toast.makeText(context, String.format("Error while loading %s: Xposed_init class %s doesn't implement any sub-interface of IXposedMod", packageName, handleLoadPackageClass.getName()), Toast.LENGTH_SHORT).show();
+                    }
+                } catch (ClassNotFoundException e) {
+                    Toast.makeText(context, String.format("Error while loading %s: Xposed_init Class %s is not found", packageName, Xposed_init), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                handleLoadPackageClass.getMethod("handleLoadPackage", Class.forName("de.robv.android.xposed.callbacks.XC_LoadPackage$LoadPackageParam", true, moduleClassLoader)).invoke(handleLoadPackageClass.newInstance(), lpparam);
+            }catch (Throwable th){
+                th.printStackTrace();
+            }
+        }
+    }
 
-    private static final Map<Member, HookInfo> hookRecords = new HashMap<>();
-    private static final Method callbackMethod;
+    private static String getXposed_init(Context context,String pkgName) {
+        try {
+            AssetManager assetManager = context.getPackageManager().getResourcesForApplication(pkgName).getAssets();
+            StringBuilder sb = new StringBuilder();
+            InputStream is = assetManager.open("xposed_init");
+            BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+            String str;
+            while ((str = br.readLine()) != null) {
+                sb.append(str);
+            }
+            br.close();
+            return sb.toString();
+        } catch (Throwable e) {
+            return null;
+        }
+    }
 
     private static Method hook0(Object context, Member original, Method callback){
         try {

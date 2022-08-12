@@ -6,7 +6,6 @@ plugins {
 dependencies {
     implementation("org.lsposed.lsplant:lsplant:4.0-aliucord.1")
     implementation("io.github.vvb2060.ndk:dobby:1.2")
-
     androidTestImplementation("androidx.test.ext:junit:1.1.3")
     androidTestImplementation("androidx.test:runner:1.4.0")
 }
@@ -26,6 +25,13 @@ android {
         targetSdk = 31
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        ndk {
+            for (item in abiFilters) {
+                abiFilters.remove(item)
+            }
+            abiFilters.add("arm64-v8a")
+            abiFilters.add("armeabi-v7a")
+        }
         externalNativeBuild {
             cmake {
                 arguments += "-DANDROID_STL=c++_shared"
@@ -50,27 +56,18 @@ afterEvaluate {
     publishing {
         publications {
             register(project.name, MavenPublication::class.java) {
-                group = "com.aliucord"
-                artifactId = "Aliuhook"
-
                 from(components["release"])
             }
 
             repositories {
-                val username = System.getenv("MAVEN_USERNAME")
-                val password = System.getenv("MAVEN_PASSWORD")
-
-                if (username != null && password != null) {
-                    maven {
-                        credentials {
-                            this.username = username
-                            this.password = password
-                        }
-                        setUrl("https://maven.aliucord.com/snapshots")
-                    }
-                } else {
-                    mavenLocal()
+                maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/Coolboy263/hook")
+                credentials {
+                    username = project.findProperty("gpr.user") as String
+                    password = project.findProperty("gpr.key") as String
                 }
+            }
             }
         }
     }
