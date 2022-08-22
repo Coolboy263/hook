@@ -15,6 +15,8 @@ import android.content.Context;
 import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
 import org.json.JSONArray;
@@ -51,20 +53,19 @@ public class XposedBridge {
     public static void initReposed(Context context, Class<?> hook){
         aliuhook = hook;
         String command;
-        JSONArray data;
+        JSONArray modulesPaths;
+        JSONArray modulesXposedInit;
         try {
             // query the main app(reposed.app) for whether to shut down
-            // or to load modules and get the modules names
-            Cursor cursor = context.getContentResolver().query(Uri.parse("content://reposed.app.contentProvider/"),null,null,null,null);
-            cursor.moveToFirst();
-            JSONObject jsonObject = new JSONObject(cursor.getString(0));
-            cursor.close();
-            command = jsonObject.getString("command");
+            // or to load modules and get the modules paths
+            Bundle bundle = context.getContentResolver().call(Uri.parse("content://reposed.app.contentProvider/"),null,null,null);
+            Log.d("debug00","reposed.app reply: "+bundle);
+            command = bundle.getString("command");
             if (command.equals("shutdown")){
                 throw new Error("this app is frozen");
             }
-            //if the command is loadModules data will be a list of modules to load
-            data = jsonObject.getJSONArray("data");
+            modulesPaths = new JSONArray(bundle.getString("modulesPaths"));
+            modulesXposedInit = new JSONArray(bundle.getString("modulesXposedInit"));
         } catch (Exception e) {
             e.printStackTrace();
             return;
@@ -80,33 +81,33 @@ public class XposedBridge {
                 lpparam.appInfo =  context.getApplicationInfo();
                 lpparam.isFirstApplication = true;
                 //load all module and pass lpparam to it
-                loadModulesList(context,data,lpparam);
+                loadModulesList(modulesXposedInit,modulesPaths,lpparam);
             }
         } catch (Throwable th) {
             th.printStackTrace();
         }
     }
 
-    private static void loadModulesList(Context context,JSONArray appsList,Object lpparam) throws Throwable {
-        for (int i = 0;i<appsList.length();i++){
+    private static void loadModulesList(JSONArray modulesXposedInit,JSONArray appsPaths,Object lpparam) throws Throwable {
+        for (int i = 0;i<appsPaths.length();i++){
             try {
-                String packageName = appsList.getString(i);
-                String sourceDir = context.getPackageManager().getApplicationInfo(packageName, 0).sourceDir;
+                String sourceDir = appsPaths.getString(i);
                 var moduleClassLoader = new PathClassLoader(sourceDir, null, XposedBridge.class.getClassLoader());
-                String Xposed_init = getXposed_init(context,packageName);
-                if (Xposed_init == null) {
-                    Toast.makeText(context, String.format("Error while loading %s: No Xposed_init file found", packageName), Toast.LENGTH_SHORT).show();
-                    return;
+                String xposed_init = modulesXposedInit.getString(i);
+                if (xposed_init == null) {
+                    Log.d("debug00",String.format("Error while loading module from %s: No xposed_init file found", sourceDir));
+                    continue;
                 }
                 Class<?> handleLoadPackageClass;
                 try {
-                    handleLoadPackageClass = Class.forName(Xposed_init, true, moduleClassLoader);
+                    handleLoadPackageClass = Class.forName(xposed_init, true, moduleClassLoader);
                     if (!Class.forName("de.robv.android.xposed.IXposedMod", true, moduleClassLoader).isAssignableFrom(handleLoadPackageClass)) {
-                        Toast.makeText(context, String.format("Error while loading %s: Xposed_init class %s doesn't implement any sub-interface of IXposedMod", packageName, handleLoadPackageClass.getName()), Toast.LENGTH_SHORT).show();
+                        Log.d("debug00",String.format("Error while loading module from %s: Xposed_init class %s doesn't implement any sub-interface of IXposedMod", sourceDir, handleLoadPackageClass.getName()));
+                        continue;
                     }
                 } catch (ClassNotFoundException e) {
-                    Toast.makeText(context, String.format("Error while loading %s: Xposed_init Class %s is not found", packageName, Xposed_init), Toast.LENGTH_SHORT).show();
-                    return;
+                    Log.d("debug00",String.format("Error while loading module from %s: Xposed_init Class %s is not found", sourceDir, xposed_init));
+                    continue;
                 }
                 handleLoadPackageClass.getMethod("handleLoadPackage", Class.forName("de.robv.android.xposed.callbacks.XC_LoadPackage$LoadPackageParam", true, moduleClassLoader)).invoke(handleLoadPackageClass.newInstance(), lpparam);
             }catch (Throwable th){
