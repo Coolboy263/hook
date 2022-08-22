@@ -58,7 +58,7 @@ public class XposedBridge {
         try {
             // query the main app(reposed.app) for whether to shut down
             // or to load modules and get the modules paths
-            Bundle bundle = context.getContentResolver().call(Uri.parse("content://reposed.app.contentProvider/"),null,null,null);
+            Bundle bundle = context.getContentResolver().call(Uri.parse("content://reposed.app.contentProvider/"),"",null,null);
             Log.d("debug00","reposed.app reply: "+bundle);
             command = bundle.getString("command");
             if (command.equals("shutdown")){
