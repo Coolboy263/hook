@@ -101,7 +101,7 @@ public class XposedBridge {
                 Class<?> handleLoadPackageClass;
                 try {
                     handleLoadPackageClass = Class.forName(xposed_init, true, moduleClassLoader);
-                    if (!Class.forName("de.robv.android.xposed.IXposedMod", true, moduleClassLoader).isAssignableFrom(handleLoadPackageClass)) {
+                    if (!IXposedMod.class.isAssignableFrom(handleLoadPackageClass)) {
                         Log.d("debug00",String.format("Error while loading module from %s: Xposed_init class %s doesn't implement any sub-interface of IXposedMod", sourceDir, handleLoadPackageClass.getName()));
                         continue;
                     }
