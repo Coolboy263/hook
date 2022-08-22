@@ -106,6 +106,10 @@ public class XposedBridge {
                         continue;
                     }
                 } catch (ClassNotFoundException e) {
+                    StringWriter sw = new StringWriter();
+                    e.printStackTrace(new PrintWriter(sw));
+                    String exceptionAsString = sw.toString();
+                    Log.d("debug00",exceptionAsString);
                     Log.d("debug00",String.format("Error while loading module from %s: Xposed_init Class %s is not found", sourceDir, xposed_init));
                     continue;
                 }
