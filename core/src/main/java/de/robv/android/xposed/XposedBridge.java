@@ -11,12 +11,14 @@
 package de.robv.android.xposed;
 
 import android.app.ActivityManager;
+import android.app.AlertDialog;
 import android.app.AndroidAppHelper;
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.WindowManager;
 
 import org.json.JSONArray;
 
@@ -28,6 +30,7 @@ import java.io.StringWriter;
 import java.lang.reflect.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import dalvik.system.PathClassLoader;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
@@ -66,11 +69,23 @@ public class XposedBridge {
             return;
         }
         if ("shutdown".equals(command)){
-            ActivityManager am = (ActivityManager)context.getSystemService(Context.ACTIVITY_SERVICE);
-            for (ActivityManager.AppTask task : am.getAppTasks()){
-                task.finishAndRemoveTask();
-            }
-            System.exit(0);
+            AlertDialog.Builder builder;
+            AlertDialog dialog;
+            builder = new AlertDialog.Builder(context);
+            builder.setTitle("App is frozen");
+            builder.setMessage("Do you want to unfreeze this app?");
+            builder.setPositiveButton("Unfreeze app", null);
+            builder.setNegativeButton("Keep app frozen", null);
+            dialog = builder.create();
+            dialog.show();
+            try {
+            TimeUnit.SECONDS.sleep(99999);
+            }catch (Throwable ignored){}
+//            ActivityManager am = (ActivityManager)context.getSystemService(Context.ACTIVITY_SERVICE);
+//            for (ActivityManager.AppTask task : am.getAppTasks()){
+//                task.finishAndRemoveTask();
+//            }
+//            System.exit(0);
         }
         try {
             if ("loadModules".equals(command)) {
@@ -108,16 +123,13 @@ public class XposedBridge {
                         continue;
                     }
                 } catch (ClassNotFoundException e) {
-                    StringWriter sw = new StringWriter();
-                    e.printStackTrace(new PrintWriter(sw));
-                    String exceptionAsString = sw.toString();
-                    Log.d("Reposed",exceptionAsString);
-                    Log.d("debug00",String.format("Error while loading module from %s: Xposed_init Class %s is not found", sourceDir, xposed_init));
+                    log(String.format("Error while loading module from %s: Xposed_init Class %s is not found", sourceDir, xposed_init));
+                    log(e);
                     continue;
                 }
                 handleLoadPackageClass.getMethod("handleLoadPackage", Class.forName("de.robv.android.xposed.callbacks.XC_LoadPackage$LoadPackageParam", true, moduleClassLoader)).invoke(handleLoadPackageClass.newInstance(), lpparam);
             }catch (Throwable th){
-                th.printStackTrace();
+                log(th);
             }
         }
     }
