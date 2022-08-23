@@ -10,17 +10,15 @@
 
 package de.robv.android.xposed;
 
+import android.app.ActivityManager;
 import android.app.AndroidAppHelper;
 import android.content.Context;
 import android.content.res.AssetManager;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.Toast;
 
 import org.json.JSONArray;
-import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -59,19 +57,23 @@ public class XposedBridge {
             // query the main app(reposed.app) for whether to shut down
             // or to load modules and get the modules paths
             Bundle bundle = context.getContentResolver().call(Uri.parse("content://reposed.app.contentProvider/"),"",null,null);
-            Log.d("debug00","reposed.app reply: "+bundle);
+            log("reposed.app reply: "+bundle);
             command = bundle.getString("command");
-            if (command.equals("shutdown")){
-                throw new Error("this app is frozen");
-            }
             modulesPaths = new JSONArray(bundle.getString("modulesPaths"));
             modulesXposedInit = new JSONArray(bundle.getString("modulesXposedInit"));
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Exception t) {
+            log(t);
             return;
         }
+        if ("shutdown".equals(command)){
+            ActivityManager am = (ActivityManager)context.getSystemService(Context.ACTIVITY_SERVICE);
+            for (ActivityManager.AppTask task : am.getAppTasks()){
+                task.finishAndRemoveTask();
+            }
+            System.exit(0);
+        }
         try {
-            if (command.equals("loadModules")) {
+            if ("loadModules".equals(command)) {
                 //make the a new instance of LoadPackageParam
                 var lpparam = new XC_LoadPackage.LoadPackageParam();
                 //sets required fields for LoadPackageParam
@@ -84,7 +86,7 @@ public class XposedBridge {
                 loadModulesList(modulesXposedInit,modulesPaths,lpparam);
             }
         } catch (Throwable th) {
-            th.printStackTrace();
+            log(th);
         }
     }
 
@@ -95,21 +97,21 @@ public class XposedBridge {
                 var moduleClassLoader = new PathClassLoader(sourceDir, null, XposedBridge.class.getClassLoader());
                 String xposed_init = modulesXposedInit.getString(i);
                 if (xposed_init == null) {
-                    Log.d("debug00",String.format("Error while loading module from %s: No xposed_init file found", sourceDir));
+                    Log.d("Reposed",String.format("Error while loading module from %s: No xposed_init file found", sourceDir));
                     continue;
                 }
                 Class<?> handleLoadPackageClass;
                 try {
                     handleLoadPackageClass = Class.forName(xposed_init, true, moduleClassLoader);
                     if (!IXposedMod.class.isAssignableFrom(handleLoadPackageClass)) {
-                        Log.d("debug00",String.format("Error while loading module from %s: Xposed_init class %s doesn't implement any sub-interface of IXposedMod", sourceDir, handleLoadPackageClass.getName()));
+                        Log.d("Reposed",String.format("Error while loading module from %s: Xposed_init class %s doesn't implement any sub-interface of IXposedMod", sourceDir, handleLoadPackageClass.getName()));
                         continue;
                     }
                 } catch (ClassNotFoundException e) {
                     StringWriter sw = new StringWriter();
                     e.printStackTrace(new PrintWriter(sw));
                     String exceptionAsString = sw.toString();
-                    Log.d("debug00",exceptionAsString);
+                    Log.d("Reposed",exceptionAsString);
                     Log.d("debug00",String.format("Error while loading module from %s: Xposed_init Class %s is not found", sourceDir, xposed_init));
                     continue;
                 }
@@ -557,10 +559,13 @@ public class XposedBridge {
     }
 
     public static void log(Throwable t) {
-        t.printStackTrace();
+        StringWriter sw = new StringWriter();
+        t.printStackTrace(new PrintWriter(sw));
+        String exceptionAsString = sw.toString();
+        Log.d("Reposed",exceptionAsString);
     }
     public static void log(String s) {
-        new Exception(s).printStackTrace();
+        Log.d("Reposed",s);
     }
 }
 
