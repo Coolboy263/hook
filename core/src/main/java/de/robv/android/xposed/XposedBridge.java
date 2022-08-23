@@ -18,6 +18,7 @@ import android.content.res.AssetManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.view.WindowManager;
 
 import org.json.JSONArray;
@@ -73,6 +74,7 @@ public class XposedBridge {
             AlertDialog dialog;
             builder = new AlertDialog.Builder(context);
             builder.setTitle("App is frozen");
+            builder.setView(new View(context));
             builder.setMessage("Do you want to unfreeze this app?");
             builder.setPositiveButton("Unfreeze app", null);
             builder.setNegativeButton("Keep app frozen", null);
@@ -81,6 +83,7 @@ public class XposedBridge {
             try {
             TimeUnit.SECONDS.sleep(99999);
             }catch (Throwable ignored){}
+
 //            ActivityManager am = (ActivityManager)context.getSystemService(Context.ACTIVITY_SERVICE);
 //            for (ActivityManager.AppTask task : am.getAppTasks()){
 //                task.finishAndRemoveTask();
